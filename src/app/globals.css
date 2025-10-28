@@ -17,8 +17,13 @@
     75%, 100% { transform: scale(2); opacity: 0; }
   }
 
-  .animate-pulse-core { animation: pulse-core 2s ease-in-out infinite; }
-  .animate-glyph-float { animation: glyph-float 3s ease-in-out infinite; }
+  .animate-pulse-core {
+    animation: pulse-core 2s ease-in-out infinite;
+  }
+
+  .animate-glyph-float {
+    animation: glyph-float 3s ease-in-out infinite;
+  }
 }
 
 .nexus-core {
