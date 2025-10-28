@@ -1,65 +1,85 @@
-import Image from "next/image";
+﻿'use client';
+import { useState, useRef } from 'react';
+import NexusLattice from '@/components/NexusLattice';
+import QuantumInput from '@/components/QuantumInput';
+import HolographicGlyph from '@/components/HolographicGlyph';
+import { Upload } from 'lucide-react';
 
-export default function Home() {
+export default function NexusCore() {
+  const [nodes, setNodes] = useState<any[]>([]);
+  const [glyphs, setGlyphs] = useState('');
+  const [pulse, setPulse] = useState<{ x: number; y: number } | null>(null);
+  const [isThinking, setIsThinking] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const colors = ['#00ffff', '#ff00ff', '#ffff00', '#00ff00', '#ff8800'];
+
+  const uploadDocument = async (e: any) => {
+    const file = e.target.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+    await fetch('/api/ingest', { method: 'POST', body: formData });
+
+    const newNode = {
+      id: Date.now(),
+      name: file.name,
+      color: colors[nodes.length % colors.length],
+      position: [
+        (Math.random() - 0.5) * 800,
+        (Math.random() - 0.5) * 600,
+        (Math.random() - 0.5) * 400,
+      ],
+    };
+    setNodes(prev => [...prev, newNode]);
+  };
+
+  const sendPulse = async (query: string) => {
+    if (!query.trim()) return;
+    setPulse({ x: 0, y: 0 });
+    setIsThinking(true);
+    setGlyphs('');
+
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [{ role: 'user', content: query }] }),
+    });
+
+    const reader = res.body?.getReader();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader!.read();
+      if (done) break;
+      buffer += new TextDecoder().decode(value);
+      const lines = buffer.split('\n').filter(Boolean);
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        try {
+          const data = JSON.parse(line);
+          if (data.content) setGlyphs(prev => prev + data.content);
+        } catch {}
+      }
+    }
+    setIsThinking(false);
+    setPulse(null);
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div className="nexus-core relative overflow-hidden">
+      <NexusLattice nodes={nodes} pulse={pulse} />
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <HolographicGlyph text={glyphs} isThinking={isThinking} />
+      </div>
+      <QuantumInput onSend={sendPulse} />
+      <input type="file" accept=".pdf" ref={fileInputRef} onChange={uploadDocument} className="hidden" />
+      <button
+        onClick={() => fileInputRef.current?.click()}
+        className="absolute top-8 left-8 p-4 rounded-full bg-cyan-500/20 backdrop-blur-xl border border-cyan-500/50 hover:scale-110 transition-all crystal-node"
+      >
+        <Upload size={24} className="text-cyan-300" />
+      </button>
     </div>
   );
 }
